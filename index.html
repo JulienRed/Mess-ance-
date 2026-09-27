@@ -125,6 +125,12 @@ form.sheet,.sheet{display:grid;gap:14px;padding:18px}
 .sugg b{font-weight:700;display:block}
 .sugg small{font-size:12px;color:var(--muted)}
 .help{font-size:14px;color:var(--muted);margin:0}
+.plat-link{display:inline-flex;align-items:center;justify-content:center;gap:6px;text-decoration:none;margin-top:6px;background:#0F79AF;border-color:#0F79AF;color:#fff}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.chips button{border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:600 12px var(--body);padding:6px 10px;border-radius:99px;cursor:pointer}
+.chips button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent)}
+a.btn{text-decoration:none;display:inline-flex;align-items:center}
+a.btn.watch{color:var(--ink)}
 @media (prefers-reduced-motion: reduce){.bar i{transition:none}}
 </style>
 </head>
@@ -169,6 +175,7 @@ form.sheet,.sheet{display:grid;gap:14px;padding:18px}
       <label for="f-titre">Titre</label>
       <input id="f-titre" required maxlength="120" autocomplete="off" placeholder="Tape un titre…">
       <div class="sugg" id="sugg" hidden></div>
+      <a class="btn plat-link" id="primeSearch" target="_blank" rel="noopener" href="https://www.primevideo.com/">Chercher sur Prime Video ↗</a>
     </div>
     <div class="grid2">
       <div class="field">
@@ -206,6 +213,13 @@ form.sheet,.sheet{display:grid;gap:14px;padding:18px}
     <div class="field">
       <label for="f-ou">Où le regarder</label>
       <input id="f-ou" maxlength="40" placeholder="Netflix, Canal+, DVD…" autocomplete="off">
+      <div class="chips" id="platChips">
+        <button type="button" data-p="Prime Video">Prime Video</button>
+        <button type="button" data-p="Netflix">Netflix</button>
+        <button type="button" data-p="Disney+">Disney+</button>
+        <button type="button" data-p="Canal+">Canal+</button>
+        <button type="button" data-p="Apple TV+">Apple TV+</button>
+      </div>
     </div>
     <div class="sheet-actions">
       <div class="row">
@@ -276,6 +290,22 @@ form.sheet,.sheet{display:grid;gap:14px;padding:18px}
   function frDate(iso){ try{ return new Date(iso + "T00:00:00").toLocaleDateString("fr-FR",{day:"numeric",month:"short",year:"numeric"}); }catch(e){ return iso; } }
   const stripHtml = s => String(s||"").replace(/<[^>]*>/g,"");
 
+  // Liens vers les plateformes (recherche du titre)
+  const PLATS = [
+    {re:/prime|amazon/i, name:"Prime Video", url:q => "https://www.primevideo.com/search?phrase=" + q},
+    {re:/netflix/i, name:"Netflix", url:q => "https://www.netflix.com/search?q=" + q},
+    {re:/disney/i, name:"Disney+", url:q => "https://www.disneyplus.com/search?q=" + q},
+    {re:/apple/i, name:"Apple TV+", url:q => "https://tv.apple.com/fr/search?term=" + q},
+  ];
+  function watchLink(it){
+    const q = encodeURIComponent(it.titre || "");
+    const p = PLATS.find(x => x.re.test(it.ou || ""));
+    if(p) return {label:"▶ " + p.name, url:p.url(q)};
+    if(it.ou) return {label:"▶ Regarder", url:"https://www.google.com/search?q=" + encodeURIComponent((it.titre||"") + " " + it.ou + " streaming")};
+    return {label:"▶ Où regarder ?", url:"https://www.google.com/search?q=" + encodeURIComponent("où regarder " + (it.titre||""))};
+  }
+  function normPlat(name){ const p = PLATS.find(x => x.re.test(name || "")); return p ? p.name : (name || ""); }
+
   function suiteState(it){
     const s = it.suite || "inconnu";
     if(s === "sortie") return "dispo";
@@ -311,7 +341,7 @@ form.sheet,.sheet{display:grid;gap:14px;padding:18px}
     return (res || []).slice(0,5).map(({show}) => ({
       src:"tvmaze", tvmazeId: show.id, type:"serie", titre: show.name,
       annee: show.premiered ? num(show.premiered.slice(0,4)) : null,
-      plateforme: (show.webChannel && show.webChannel.name) || (show.network && show.network.name) || "",
+      plateforme: normPlat((show.webChannel && show.webChannel.name) || (show.network && show.network.name) || ""),
       poster: show.image ? (show.image.medium || show.image.original) : "",
       genre: (show.genres || [])[0] || "",
       statusShow: show.status
@@ -487,6 +517,7 @@ form.sheet,.sheet{display:grid;gap:14px;padding:18px}
       acts.push(btn("Revoir", () => act(it.id,"revoir"), "ghost"));
     }
     acts.push(btn("Modifier", () => openDlg(it.id), "ghost"));
+    if(!demo){ const w = watchLink(it); acts.push(el("a",{class:"btn watch", href:w.url, target:"_blank", rel:"noopener"}, w.label)); }
 
     let suiteRow = null, suitePill = null;
     if(it.type === "serie" && it.statut === "termine"){
@@ -602,6 +633,7 @@ form.sheet,.sheet{display:grid;gap:14px;padding:18px}
     $("#f-titre").value = String(s.titre).slice(0,120);
     $("#f-type").value = s.type; syncTypeFields();
     if(s.plateforme) $("#f-ou").value = String(s.plateforme).slice(0,40);
+    syncChips(); updatePrimeLink();
     if(s.type === "film"){
       if(s.duree) $("#f-duree").value = s.duree;
       suggStatus("Infos remplies : " + describe(s) + ". Vérifie puis enregistre.");
@@ -625,6 +657,7 @@ form.sheet,.sheet{display:grid;gap:14px;padding:18px}
     }
   }
   $("#f-titre").addEventListener("input", () => {
+    updatePrimeLink();
     if(editingId) return;
     suggOff = false; picked = null;
     clearTimeout(suggTimer);
@@ -635,6 +668,18 @@ form.sheet,.sheet{display:grid;gap:14px;padding:18px}
   $("#f-type").addEventListener("change", () => { $("#f-type").dataset.touched = "1"; });
 
   // ---------- fenêtre d'ajout / modification ----------
+  function updatePrimeLink(){
+    const q = $("#f-titre").value.trim();
+    $("#primeSearch").href = q ? "https://www.primevideo.com/search?phrase=" + encodeURIComponent(q) : "https://www.primevideo.com/";
+  }
+  function syncChips(){
+    const v = normPlat($("#f-ou").value.trim());
+    document.querySelectorAll("#platChips button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.p === v)));
+  }
+  document.querySelectorAll("#platChips button").forEach(b => b.addEventListener("click", () => {
+    $("#f-ou").value = $("#f-ou").value.trim() === b.dataset.p ? "" : b.dataset.p; syncChips();
+  }));
+  $("#f-ou").addEventListener("input", syncChips);
   const dlg = $("#dlg");
   function syncTypeFields(){
     const film = $("#f-type").value === "film";
@@ -666,7 +711,7 @@ form.sheet,.sheet{display:grid;gap:14px;padding:18px}
     $("#f-suite").value = it && it.suite ? it.suite : "inconnu";
     $("#f-suitedate").value = it && it.suiteDate ? it.suiteDate : "";
     $("#delBtn").hidden = !it; $("#delConfirm").hidden = true;
-    syncTypeFields();
+    syncTypeFields(); syncChips(); updatePrimeLink();
     if(typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open","");
     if(!it) setTimeout(() => $("#f-titre").focus(), 50);
   }
