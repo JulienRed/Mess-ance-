@@ -13,6 +13,7 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-192.png">
 <link rel="manifest" href="manifest.webmanifest">
+<script>try{if(localStorage.getItem("ms-pin"))document.documentElement.classList.add("locked")}catch(e){}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
@@ -106,7 +107,32 @@ input:focus-visible,select:focus-visible,button:focus-visible,a:focus-visible{ou
 .empty{text-align:center;color:var(--muted);padding:28px 12px;border:1px dashed var(--line);border-radius:14px}
 .checkbar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--surface-2);border-radius:12px;padding:10px 12px;font-size:13px;color:var(--muted)}
 .checkbar b{color:var(--ink)}
-.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:14px;max-width:calc(100% - 32px);z-index:5}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:14px;max-width:calc(100% - 32px);z-index:5;display:flex;gap:12px;align-items:center}
+.toast button{border:0;background:none;color:var(--bg);font:700 14px var(--body);text-decoration:underline;cursor:pointer;padding:4px}
+html.locked .wrap,html.locked .fab,html.locked .toast{visibility:hidden}
+.lock{position:fixed;inset:0;z-index:20;background:var(--bg);display:grid;place-items:center;padding:calc(20px + env(safe-area-inset-top,0px)) 16px calc(20px + env(safe-area-inset-bottom,0px));overflow:auto}
+.lock-box{display:grid;gap:18px;justify-items:center;text-align:center;width:min(320px,100%)}
+.lock-box h2{font-family:var(--display);font-stretch:68%;font-weight:800;text-transform:uppercase;font-size:34px;margin:0;line-height:1}
+.lock-box h2 span{color:var(--accent)}
+.lock-msg{color:var(--muted);margin:0;min-height:1.4em}
+.lock-msg.err{color:var(--accent);font-weight:600}
+.dots{display:flex;gap:16px}
+.dots i{width:16px;height:16px;border-radius:50%;border:2px solid var(--ink)}
+.dots i.on{background:var(--ink)}
+.dots.shake{animation:shake .35s}
+@keyframes shake{25%{transform:translateX(-8px)}75%{transform:translateX(8px)}}
+.pad{display:grid;grid-template-columns:repeat(3,72px);gap:14px 22px}
+.pad button{width:72px;height:72px;border-radius:50%;border:0;background:var(--surface-2);color:var(--ink);font:600 28px var(--body);cursor:pointer}
+.pad button:active{background:var(--line)}
+.pad button.blank{visibility:hidden}
+.pad button.del{background:transparent;font-size:22px}
+.pad button:disabled{opacity:.35}
+.menu-sec{display:grid;gap:8px;padding-top:12px;border-top:1px solid var(--line)}
+.menu-sec h3{margin:0;font:700 12px var(--body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.snap{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px}
+.snap small{color:var(--muted)}
+.banner{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:var(--encours-bg);color:var(--ink);border-radius:12px;padding:10px 12px;font-size:13px}
+@media (prefers-reduced-motion: reduce){.dots.shake{animation:none}}
 
 .fab{position:fixed;right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));background:var(--accent);color:var(--accent-ink);border:0;border-radius:99px;padding:14px 20px;font:700 15px var(--body);box-shadow:0 6px 18px rgba(0,0,0,.22);cursor:pointer}
 
@@ -167,6 +193,26 @@ a.btn.watch{color:var(--ink)}
 
 <button class="fab" id="addBtn">+ Ajouter</button>
 <div class="toast" id="toast" hidden></div>
+
+<div class="lock" id="lock" hidden>
+  <div class="lock-box">
+    <h2>Mes <span>Séances</span></h2>
+    <p class="lock-msg" id="lockMsg">Entre ton code</p>
+    <div class="dots" id="dots" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+    <div class="pad" id="pad" role="group" aria-label="Clavier du code">
+      <button type="button" data-d="1">1</button><button type="button" data-d="2">2</button><button type="button" data-d="3">3</button>
+      <button type="button" data-d="4">4</button><button type="button" data-d="5">5</button><button type="button" data-d="6">6</button>
+      <button type="button" data-d="7">7</button><button type="button" data-d="8">8</button><button type="button" data-d="9">9</button>
+      <button type="button" class="blank" tabindex="-1" aria-hidden="true"></button><button type="button" data-d="0">0</button><button type="button" class="del" id="padDel" aria-label="Effacer">⌫</button>
+    </div>
+    <button class="btn ghost" type="button" id="lockCancel" hidden>Annuler</button>
+    <button class="btn ghost" type="button" id="lockForgot">Code oublié ?</button>
+    <div id="forgotBox" hidden class="lock-box" style="gap:10px">
+      <p class="help">Sans le code, la seule solution est d'effacer les données de l'app sur ce téléphone. Tu pourras ensuite réimporter ta dernière sauvegarde.</p>
+      <button class="btn danger" type="button" id="wipeBtn">Tout effacer</button>
+    </div>
+  </div>
+</div>
 
 <dialog id="dlg">
   <form class="sheet" id="form">
@@ -236,12 +282,25 @@ a.btn.watch{color:var(--ink)}
 
 <dialog id="menu">
   <div class="sheet">
-    <h2>Sauvegarde</h2>
-    <p class="help">Ta liste est gardée sur ce téléphone. Fais une copie de temps en temps pour ne rien perdre si tu changes de téléphone.</p>
-    <button class="btn primary" id="exportBtn" type="button">Exporter ma liste (fichier)</button>
-    <label class="btn" for="importFile" style="text-align:center">Importer une sauvegarde</label>
-    <input type="file" id="importFile" accept="application/json,.json" hidden>
-    <p class="help" id="menuMsg"></p>
+    <h2>Sauvegarde & protection</h2>
+    <div class="menu-sec">
+      <h3>Copie de sécurité</h3>
+      <p class="help" id="lastExport"></p>
+      <button class="btn primary" id="exportBtn" type="button">Sauvegarder ma liste (fichier)</button>
+      <p class="help">Sur iPhone, choisis « Enregistrer dans Fichiers » puis iCloud Drive : ta copie est à l'abri même si tu perds ton téléphone.</p>
+      <label class="btn" for="importFile" style="justify-content:center;display:flex">Importer une sauvegarde</label>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+      <p class="help" id="menuMsg"></p>
+    </div>
+    <div class="menu-sec">
+      <h3>Versions automatiques (7 derniers jours)</h3>
+      <div id="snapList"></div>
+    </div>
+    <div class="menu-sec">
+      <h3>Code de verrouillage</h3>
+      <p class="help" id="pinState"></p>
+      <div class="row" id="pinBtns"></div>
+    </div>
     <p class="help">Infos séries : TVmaze. Infos films : iTunes.</p>
     <button class="btn ghost" id="menuClose" type="button">Fermer</button>
   </div>
@@ -275,10 +334,18 @@ a.btn.watch{color:var(--ink)}
     if(i >= 0) items[i] = item; else items.push(item);
     persist(); if(!quiet) render();
   }
-  function remove(id){ items = items.filter(x => x.id !== id); persist(); render(); }
+  function remove(id){
+    const gone = items.find(x => x.id === id);
+    items = items.filter(x => x.id !== id); persist(); render();
+    if(gone) toast("« " + gone.titre + " » supprimé.", "Annuler", () => { if(!items.some(x => x.id === gone.id)){ items.push(gone); persist(); render(); } });
+  }
 
   let toastT;
-  function toast(t){ const el = $("#toast"); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 3500); }
+  function toast(t, actionLabel, action){
+    const el = $("#toast"); el.textContent = t;
+    if(actionLabel) el.append(Object.assign(document.createElement("button"), {type:"button", textContent:actionLabel, onclick:() => { el.hidden = true; action(); }}));
+    el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, actionLabel ? 7000 : 3500);
+  }
 
   // ---------- helpers ----------
   const clampInt = (v, min, fallback) => { const n = parseInt(v,10); return Number.isFinite(n) ? Math.max(min,n) : fallback; };
@@ -580,6 +647,12 @@ a.btn.watch{color:var(--ink)}
       return;
     }
     if(filtre === "suites") listEl.append(checkBar());
+    const dExp = daysSinceExport();
+    if(dExp === null || dExp >= 7){
+      listEl.append(el("div",{class:"banner"},
+        el("span",{}, dExp === null ? "Tu n'as encore jamais sauvegardé ta liste." : "Dernière sauvegarde il y a " + dExp + " jours."),
+        el("button",{type:"button", class:"btn primary", onclick: doExport}, "Sauvegarder")));
+    }
     const order = {en_cours:0, a_voir:1, termine:2};
     const q = query.trim().toLowerCase();
     const shown = items
@@ -747,31 +820,152 @@ a.btn.watch{color:var(--ink)}
   });
 
   // ---------- sauvegarde ----------
-  const menu = $("#menu");
-  $("#menuBtn").addEventListener("click", () => { $("#menuMsg").textContent = ""; menu.showModal ? menu.showModal() : menu.setAttribute("open",""); });
-  $("#menuClose").addEventListener("click", () => menu.open ? menu.close() : menu.removeAttribute("open"));
-  $("#exportBtn").addEventListener("click", async () => {
+  const SNAP_KEY = "ms-snaps", EXP_KEY = "ms-lastExport", PIN_KEY = "ms-pin";
+  const lsGet = (k, d) => { try{ const r = localStorage.getItem(k); return r ? JSON.parse(r) : d; }catch(e){ return d; } };
+  const lsSet = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); return true; }catch(e){ return false; } };
+
+  function snapshot(reason){
+    if(!items.length) return;
+    const snaps = lsGet(SNAP_KEY, []);
+    snaps.unshift({t: Date.now(), day: todayISO(), reason, items: JSON.parse(JSON.stringify(items))});
+    // garde une copie auto par jour sur 7 jours + les 3 dernières copies "avant…"
+    const autos = [], others = [];
+    for(const s of snaps){
+      if(s.reason === "auto"){ if(autos.length < 7 && !autos.some(a => a.day === s.day)) autos.push(s); }
+      else if(others.length < 3) others.push(s);
+    }
+    lsSet(SNAP_KEY, [...autos, ...others].sort((a,b) => b.t - a.t));
+  }
+  function dailySnapshot(){
+    if(!lsGet(SNAP_KEY, []).some(s => s.reason === "auto" && s.day === todayISO())) snapshot("auto");
+  }
+  function daysSinceExport(){ const t = lsGet(EXP_KEY, 0); return t ? Math.floor((Date.now() - t) / 86400000) : null; }
+
+  async function doExport(){
     const data = JSON.stringify({app:"mes-seances", version:1, date:new Date().toISOString(), items}, null, 1);
     const name = "mes-seances-" + todayISO() + ".json";
     const file = new File([data], name, {type:"application/json"});
     try{
-      if(navigator.canShare && navigator.canShare({files:[file]})){ await navigator.share({files:[file], title:"Sauvegarde Mes Séances"}); $("#menuMsg").textContent = "Sauvegarde prête."; return; }
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({files:[file], title:"Sauvegarde Mes Séances"});
+        lsSet(EXP_KEY, Date.now()); render(); renderMenu(); toast("Sauvegarde faite."); return;
+      }
     }catch(e){ if(e && e.name === "AbortError") return; }
     const a = document.createElement("a"); a.href = URL.createObjectURL(file); a.download = name; document.body.append(a); a.click(); a.remove();
-    $("#menuMsg").textContent = "Fichier " + name + " téléchargé.";
-  });
+    lsSet(EXP_KEY, Date.now()); render(); renderMenu(); toast("Fichier " + name + " enregistré.");
+  }
+
+  const menu = $("#menu");
+  function renderMenu(){
+    const d = daysSinceExport();
+    $("#lastExport").textContent = d === null ? "Aucune copie faite pour l'instant." : d === 0 ? "Dernière copie : aujourd'hui." : "Dernière copie : il y a " + d + " jour" + (d > 1 ? "s" : "") + ".";
+    const list = $("#snapList"); list.textContent = "";
+    const snaps = lsGet(SNAP_KEY, []);
+    if(!snaps.length) list.append(el("p",{class:"help"}, "La première copie automatique sera faite à la prochaine ouverture."));
+    snaps.forEach(s => {
+      const when = new Date(s.t).toLocaleString("fr-FR",{weekday:"short", day:"numeric", month:"short", hour:"2-digit", minute:"2-digit"});
+      const b = el("button",{type:"button", class:"btn"}, "Restaurer");
+      b.addEventListener("click", () => {
+        if(b.dataset.armed){ snapshot("avant restauration"); items = JSON.parse(JSON.stringify(s.items)); persist(); render(); renderMenu(); $("#menuMsg").textContent = "Version du " + when + " restaurée."; return; }
+        b.dataset.armed = "1"; b.textContent = "Confirmer"; b.classList.add("danger");
+      });
+      list.append(el("div",{class:"snap"}, el("div",{}, when, el("br"), el("small",{}, s.items.length + " titre(s)" + (s.reason !== "auto" ? " · " + s.reason : ""))), b));
+    });
+    const pin = lsGet(PIN_KEY, null);
+    $("#pinState").textContent = pin ? "Activé : l'app demande le code à l'ouverture et après 1 minute en arrière-plan." : "Désactivé : n'importe qui avec ton téléphone peut ouvrir l'app.";
+    const pb = $("#pinBtns"); pb.textContent = "";
+    if(pin){
+      pb.append(el("button",{type:"button", class:"btn", onclick: () => { closeMenu(); askPin("verify", () => askPin("set1")); }}, "Changer le code"));
+      pb.append(el("button",{type:"button", class:"btn danger", onclick: () => { closeMenu(); askPin("verify", () => { try{ localStorage.removeItem(PIN_KEY); }catch(e){} toast("Code désactivé."); }); }}, "Désactiver"));
+    } else {
+      pb.append(el("button",{type:"button", class:"btn primary", onclick: () => { closeMenu(); askPin("set1"); }}, "Activer un code"));
+    }
+  }
+  function closeMenu(){ menu.open ? menu.close() : menu.removeAttribute("open"); }
+  $("#menuBtn").addEventListener("click", () => { $("#menuMsg").textContent = ""; renderMenu(); menu.showModal ? menu.showModal() : menu.setAttribute("open",""); });
+  $("#menuClose").addEventListener("click", closeMenu);
+  $("#exportBtn").addEventListener("click", doExport);
   $("#importFile").addEventListener("change", async e => {
     const f = e.target.files && e.target.files[0]; if(!f) return;
     try{
       const d = JSON.parse(await f.text());
       const arr = Array.isArray(d) ? d : d.items;
       if(!Array.isArray(arr)) throw 0;
+      snapshot("avant import");
       const byId = new Map(items.map(x => [x.id, x]));
       arr.filter(x => x && x.id && x.titre).forEach(x => byId.set(x.id, x));
-      items = [...byId.values()]; persist(); render();
+      items = [...byId.values()]; persist(); render(); renderMenu();
       $("#menuMsg").textContent = arr.length + " titre(s) importé(s).";
     }catch(err){ $("#menuMsg").textContent = "Ce fichier n'est pas une sauvegarde Mes Séances."; }
     e.target.value = "";
+  });
+
+  // ---------- code de verrouillage ----------
+  let pinMode = null, pinBuf = "", pinFirst = "", pinThen = null, pinFails = 0, hiddenAt = 0;
+  async function hashPin(pin, salt){
+    if(window.crypto && crypto.subtle){
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + ":" + pin));
+      return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,"0")).join("");
+    }
+    return "plain:" + salt + pin;
+  }
+  function dotsUpdate(){ document.querySelectorAll("#dots i").forEach((d,i) => d.classList.toggle("on", i < pinBuf.length)); }
+  function lockMsg(t, err){ const m = $("#lockMsg"); m.textContent = t; m.classList.toggle("err", !!err); }
+  function askPin(mode, then){
+    pinMode = mode; pinThen = then || null; pinBuf = ""; dotsUpdate();
+    $("#forgotBox").hidden = true; $("#wipeBtn").textContent = "Tout effacer"; delete $("#wipeBtn").dataset.armed;
+    $("#lockForgot").hidden = mode !== "unlock";
+    $("#lockCancel").hidden = mode === "unlock";
+    lockMsg({unlock:"Entre ton code", verify:"Entre ton code actuel", set1:"Choisis un code à 4 chiffres", set2:"Confirme le code"}[mode]);
+    $("#lock").hidden = false;
+  }
+  function closeLock(){ $("#lock").hidden = true; pinMode = null; document.documentElement.classList.remove("locked"); }
+  function lockNow(){
+    if(!lsGet(PIN_KEY, null)) return;
+    if(dlg.open) dlg.close(); if(menu.open) menu.close();
+    document.documentElement.classList.add("locked"); askPin("unlock");
+  }
+  function shake(){ const d = $("#dots"); d.classList.remove("shake"); void d.offsetWidth; d.classList.add("shake"); }
+  async function pinComplete(){
+    const code = pinBuf; pinBuf = ""; setTimeout(dotsUpdate, 150);
+    if(pinMode === "set1"){ pinFirst = code; pinMode = "set2"; lockMsg("Confirme le code"); return; }
+    if(pinMode === "set2"){
+      if(code !== pinFirst){ shake(); pinMode = "set1"; lockMsg("Les codes sont différents. Recommence.", true); return; }
+      const salt = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      lsSet(PIN_KEY, {salt, hash: await hashPin(code, salt)});
+      closeLock(); toast("Code activé. Note-le bien."); return;
+    }
+    const pin = lsGet(PIN_KEY, null);
+    if(!pin){ closeLock(); return; }
+    if(await hashPin(code, pin.salt) === pin.hash){
+      pinFails = 0; const then = pinThen; closeLock(); if(then) then(); return;
+    }
+    pinFails++; shake();
+    if(pinFails >= 5){
+      document.querySelectorAll("#pad button").forEach(b => b.disabled = true);
+      lockMsg("Trop d'essais. Attends 30 secondes.", true);
+      setTimeout(() => { pinFails = 3; document.querySelectorAll("#pad button").forEach(b => b.disabled = false); lockMsg("Entre ton code"); }, 30000);
+    } else lockMsg("Code incorrect", true);
+  }
+  $("#pad").addEventListener("click", e => {
+    const b = e.target.closest("button"); if(!b || !pinMode || b.disabled) return;
+    if(b.id === "padDel"){ pinBuf = pinBuf.slice(0,-1); dotsUpdate(); return; }
+    if(!b.dataset.d || pinBuf.length >= 4) return;
+    pinBuf += b.dataset.d; dotsUpdate();
+    if(pinBuf.length === 4) pinComplete();
+  });
+  document.addEventListener("keydown", e => {
+    if(!pinMode) return;
+    if(/^[0-9]$/.test(e.key) && pinBuf.length < 4){ pinBuf += e.key; dotsUpdate(); if(pinBuf.length === 4) pinComplete(); }
+    else if(e.key === "Backspace"){ pinBuf = pinBuf.slice(0,-1); dotsUpdate(); }
+  });
+  $("#lockCancel").addEventListener("click", closeLock);
+  $("#lockForgot").addEventListener("click", () => { $("#forgotBox").hidden = false; });
+  $("#wipeBtn").addEventListener("click", () => {
+    const b = $("#wipeBtn");
+    if(!b.dataset.armed){ b.dataset.armed = "1"; b.textContent = "Confirmer : tout effacer"; return; }
+    try{ [LS_KEY, PIN_KEY, SNAP_KEY, EXP_KEY].forEach(k => localStorage.removeItem(k)); }catch(e){}
+    location.reload();
   });
 
   // ---------- filtres ----------
@@ -789,9 +983,16 @@ a.btn.watch{color:var(--ink)}
 
   // ---------- démarrage ----------
   items = load();
+  if(lsGet(PIN_KEY, null)) askPin("unlock");
+  dailySnapshot();
   render();
   setTimeout(() => checkAll(false), 800);
-  document.addEventListener("visibilitychange", () => { if(document.visibilityState === "visible") checkAll(false); });
+  document.addEventListener("visibilitychange", () => {
+    if(document.visibilityState === "hidden"){ hiddenAt = Date.now(); return; }
+    if(hiddenAt && Date.now() - hiddenAt > 60000 && pinMode !== "unlock") lockNow();
+    dailySnapshot();
+    checkAll(false);
+  });
   if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
 })();
 </script>
